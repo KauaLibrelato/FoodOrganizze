@@ -1,6 +1,6 @@
 # Casa Fratoni - Resumo Tecnico
 
-Casa Fratoni e um sistema web interno para gestao de pedidos, clientes, receitas, ingredientes, compras, precificacao e producao de uma confeitaria artesanal.
+Casa Fratoni e um sistema web interno para gestao de pedidos, clientes, receitas, insumos, compras, precificacao e producao de uma confeitaria artesanal.
 
 O projeto nasceu como FoodOrganizze, mas a marca atual da interface e Casa Fratoni.
 
@@ -42,13 +42,17 @@ Pedidos e itens salvam snapshots de custo e lucro para preservar historico quand
 
 ## Regras implementadas
 
-- Ingredientes base tem estoque atual, unidade base, estoque minimo e custo medio.
-- Compras de ingredientes guardam quantidade original, unidade, quantidade convertida, preco total e preco unitario.
+- A UI usa "Insumos" para itens de custo/estoque; o banco segue usando `ingredients`.
+- Insumos base tem estoque atual, unidade base, estoque minimo e custo medio.
+- Compras de insumos guardam quantidade original, unidade, quantidade convertida, preco total e preco unitario.
 - Um trigger atualiza estoque e custo medio ponderado apos nova compra.
-- Receitas usam ingredientes com quantidade convertida para a unidade base.
+- Receitas usam insumos com quantidade convertida para a unidade base.
 - Receitas podem guardar passo a passo em `recipes.notes`.
 - Produtos podem se vincular a receitas.
-- Pedidos possuem status operacional, status de pagamento e snapshots financeiros.
+- Pedidos possuem multiplos itens, desconto, status operacional, status de pagamento e snapshots financeiros.
+- Itens de pedido guardam unidade da quantidade em `quantity_unit`.
+- Datas e horarios na UI seguem `DD/MM/YYYY HH:MM`.
+- Numeracao visual de pedidos usa `Pedido 1`, `Pedido 2`, etc., sem `#FO`.
 - Producao lista pedidos paginados e filtraveis por status/data; nao consolida ingredientes na UI atual.
 - Gestao financeira usa pedidos nao cancelados, custos salvos em snapshots e despesas cadastradas.
 - `business_expenses` guarda despesas por categoria/data.
@@ -61,6 +65,16 @@ Pedidos e itens salvam snapshots de custo e lucro para preservar historico quand
 - Filtros de periodo fixo atualizam datas automaticamente; periodo personalizado libera os inputs.
 - Se o lucro liquido for menor ou igual a zero, nao existe distribuicao de lucro.
 - Para banco ja populado, aplicar `database/gestao-financeira.sql` no Supabase antes de usar mutacoes financeiras.
+- Para banco ja populado, aplicar `database/pedidos-multiplos-itens.sql` antes de usar a tela nova de pedidos.
+
+## Git e deploy
+
+- Repositorio: `https://github.com/KauaLibrelato/FoodOrganizze.git`
+- Branch principal: `main`
+- Deploy planejado: Vercel importando o repositorio GitHub
+- Build command na Vercel: `npm run build`
+- Configurar `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_BUSINESS_NAME`, `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- No Supabase Auth, liberar a URL de producao, `/auth/callback` e `/redefinir-senha`
 
 ## Estado atual
 
@@ -71,15 +85,15 @@ O app ja tem:
 - middleware de protecao
 - cache por request com `React.cache`
 - CRUD/edicao/exclusao de clientes
-- cadastro de ingredientes e compras
+- cadastro de insumos e compras
 - receitas/produtos com edicao e exclusao
-- edicao/remocao de ingredientes em receitas
-- pedidos simples com snapshots
+- edicao/remocao de insumos em receitas
+- pedidos com multiplos itens, desconto, edicao/exclusao e snapshots
 - dashboard de balcao
 - producao por pedidos com filtros e paginacao
 - gestao financeira
 - financeiro/despesas/distribuicao
-- calculadoras de preco/rendimento
+- calculadoras de preco/rendimento/redimensionamento de receita
 - skeleton loading cru, estados de erro, toasts e confirmacoes
 
 ## Arquivos-chave
@@ -95,4 +109,5 @@ O app ja tem:
 - `lib/calculations`
 - `database/schema.sql`
 - `database/gestao-financeira.sql`
+- `database/pedidos-multiplos-itens.sql`
 - `types/index.ts`

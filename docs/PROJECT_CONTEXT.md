@@ -14,7 +14,7 @@ Uma confeitaria artesanal usando principalmente celular e notebook, com necessid
 - organizar clientes e encomendas
 - entender quanto custa cada receita
 - saber quanto cobrar
-- controlar ingredientes e compras
+- controlar insumos e compras
 - estimar lucro
 - acompanhar faturamento, despesas e lucro por periodo
 - configurar distribuicao de lucro
@@ -184,7 +184,9 @@ Clientes da confeitaria, com telefone, endereco e observacoes. A UI atual permit
 
 ### ingredients
 
-Ingredientes base. Campos importantes:
+Tabela de insumos base. A UI usa "Insumos" porque pode incluir ingredientes, embalagens, caixas e outros itens de custo; o nome da tabela segue `ingredients`.
+
+Campos importantes:
 
 - `base_unit`
 - `current_stock`
@@ -195,7 +197,7 @@ Na UI principal, categoria e aviso de estoque minimo foram removidos por decisao
 
 ### ingredient_purchases
 
-Compras/lotes de ingredientes. Ao inserir uma compra, trigger atualiza estoque e custo medio ponderado do ingrediente.
+Compras/lotes de insumos. Ao inserir uma compra, trigger atualiza estoque e custo medio ponderado do insumo.
 
 ### recipes
 
@@ -203,7 +205,7 @@ Receitas padrao com rendimento, unidade, tempo de preparo e passo a passo em `no
 
 ### recipe_ingredients
 
-Ingredientes usados em cada receita. Guarda quantidade informada e quantidade convertida para unidade base. A UI permite adicionar, editar e remover ingredientes da receita.
+Insumos usados em cada receita. Guarda quantidade informada e quantidade convertida para unidade base. A UI permite adicionar, editar e remover insumos da receita.
 
 ### products
 
@@ -215,7 +217,7 @@ Pedidos, status, pagamento, totais e snapshots financeiros.
 
 ### order_items
 
-Itens de pedido. Guarda snapshots de custo/lucro do item.
+Itens de pedido. Guarda snapshots de custo/lucro do item e unidade da quantidade em `quantity_unit`.
 
 ### pricing_settings
 
@@ -342,6 +344,31 @@ Distribuicao de lucro:
 
 Importante: nao usar mock na implementacao final de Gestao/Financeiro. O app pode ter fallback defensivo se uma tabela nova ainda nao existir, mas dados financeiros reais devem vir do Supabase.
 
+## Pedidos
+
+Pedidos aceitam multiplos itens no mesmo formulario. Cada linha pode usar produto e/ou receita, quantidade, unidade, preco unitario, custo unitario e observacao.
+
+Regras atuais:
+
+- o pedido mostra resumo antes de salvar
+- desconto pode ser informado em valor ou porcentagem
+- o servidor recalcula custo estimado por receita/insumos quando o custo enviado vem zerado
+- pedidos salvam snapshots financeiros para preservar historico
+- exibicao visual usa `Pedido 1`, `Pedido 2`, etc., sem `#FO`
+- datas e horarios exibem `DD/MM/YYYY HH:MM`
+
+## Receitas e produtos
+
+Receitas e produtos ficam na rota `/receitas`.
+
+Estado atual da UI:
+
+- receitas aparecem como uma faixa horizontal de selecao no topo
+- o formulario de receita fica abaixo
+- dados da receita e insumos da receita ficam no mesmo bloco de trabalho
+- na criacao, a area de insumos fica visivel como bloqueada ate salvar a receita base
+- produtos continuam na mesma pagina, com edicao/exclusao e vinculo opcional com receita
+
 ## Supabase
 
 Variaveis:
@@ -361,6 +388,34 @@ Para reset de senha:
 - `NEXT_PUBLIC_APP_URL` precisa bater com a URL do app
 - adicionar `/auth/callback` nas redirect URLs do Supabase
 
+## Git e deploy
+
+Repositorio:
+
+```txt
+https://github.com/KauaLibrelato/FoodOrganizze.git
+```
+
+Branch principal:
+
+```txt
+main
+```
+
+Deploy planejado: Vercel importando o repositorio GitHub.
+
+Na Vercel:
+
+- Framework: Next.js
+- Build command: `npm run build`
+- Output directory: default/vazio
+- configurar as variaveis `NEXT_PUBLIC_*`
+
+No Supabase Auth em producao:
+
+- Site URL deve ser a URL final da Vercel ou dominio proprio
+- Redirect URLs devem incluir `/auth/callback` e `/redefinir-senha`
+
 ## Estado funcional atual
 
 Ja existe:
@@ -376,16 +431,16 @@ Ja existe:
 - cache por request com `React.cache`
 - dashboard de balcao
 - clientes com criar/editar/excluir
-- ingredientes com cadastro e compras
+- insumos com cadastro e compras
 - atualizacao de custo medio via trigger SQL
 - receitas com criar/editar/excluir
-- ingredientes da receita com adicionar/editar/remover
+- insumos da receita com adicionar/editar/remover
 - produtos com criar/editar/excluir
-- pedidos simples com snapshots
+- pedidos com multiplos itens, desconto, edicao/exclusao e snapshots
 - producao por pedidos com filtros e paginacao
 - gestao financeira com cards, filtros, graficos simples e distribuicao de lucro
 - financeiro para despesas e configuracao de porcentagens
-- calculadoras de preco e rendimento
+- calculadoras de preco, rendimento e redimensionamento de receita
 - skeleton loading cru, sem textos falsos nos blocos
 - estados de erro
 - toasts
@@ -393,12 +448,12 @@ Ja existe:
 
 ## Pontos que ainda precisam evoluir
 
-- edicao/exclusao completa em pedidos
-- calculo automatico de custo do pedido a partir de produto/receita
 - confirmar/aplicar `database/gestao-financeira.sql` no Supabase real
+- confirmar/aplicar `database/pedidos-multiplos-itens.sql` no Supabase real
+- fazer deploy na Vercel e configurar redirects do Supabase Auth
 - revisar Gestao/Financeiro com dados reais apos aplicar a migracao
 - historico detalhado do cliente
-- detalhe de ingrediente com historico de compras
+- detalhe de insumo com historico de compras
 - relatorio/exportacao da tela de producao
 - testes unitarios para `lib/calculations`
 - padronizar toasts/confirmacoes em todos os formularios restantes

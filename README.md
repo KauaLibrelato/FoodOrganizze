@@ -1,6 +1,6 @@
 # Casa Fratoni
 
-Sistema web interno para gestao de pedidos, clientes, receitas, ingredientes, compras, precificacao e producao da confeitaria artesanal Casa Fratoni.
+Sistema web interno para gestao de pedidos, clientes, receitas, insumos, compras, precificacao e producao da confeitaria artesanal Casa Fratoni.
 
 O projeto nasceu com o nome FoodOrganizze, mas a marca atual da interface e Casa Fratoni.
 
@@ -10,18 +10,18 @@ O sistema ajuda a confeitaria a organizar:
 
 - pedidos e status de entrega
 - clientes
-- ingredientes base
-- compras/lotes de ingredientes
+- insumos base
+- compras/lotes de insumos
 - custo medio ponderado
-- receitas, ingredientes e passo a passo
+- receitas, insumos e passo a passo
 - custo por rendimento
 - produtos vendaveis
-- snapshots de custo/lucro em pedidos
+- pedidos com multiplos itens, desconto e snapshots de custo/lucro
 - producao por pedidos, status e periodo
 - gestao financeira por periodo
 - cadastro de despesas da empresa
 - configuracao de distribuicao de lucro
-- calculadoras de preco de venda e rendimento
+- calculadoras de preco de venda, rendimento e redimensionamento de receita
 
 ## Stack
 
@@ -53,6 +53,12 @@ O script de desenvolvimento sobe em:
 http://127.0.0.1:3000
 ```
 
+Repositorio:
+
+```txt
+https://github.com/KauaLibrelato/FoodOrganizze.git
+```
+
 ## Ambiente
 
 Crie `.env` baseado em `.env.example`:
@@ -70,6 +76,34 @@ Importante:
 - `NEXT_PUBLIC_SUPABASE_URL` deve ser a URL base do projeto, sem `/rest/v1`.
 - `NEXT_PUBLIC_APP_URL` precisa bater com a URL permitida no Supabase Auth para reset de senha.
 - Para desenvolvimento local, adicione `http://localhost:3000/auth/callback` nas URLs de redirect do Supabase.
+
+## Deploy na Vercel
+
+Importe o repositorio `KauaLibrelato/FoodOrganizze` na Vercel.
+
+Configuracao:
+
+- Framework: Next.js
+- Build command: `npm run build`
+- Output directory: default/vazio
+
+Variaveis de ambiente em producao:
+
+```env
+NEXT_PUBLIC_APP_URL=https://SEU-DOMINIO.vercel.app
+NEXT_PUBLIC_APP_NAME=Casa Fratoni
+NEXT_PUBLIC_BUSINESS_NAME=Casa Fratoni
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=SUA_ANON_KEY
+```
+
+No Supabase Auth, configure:
+
+- Site URL: `https://SEU-DOMINIO.vercel.app`
+- Redirect URL: `https://SEU-DOMINIO.vercel.app/auth/callback`
+- Redirect URL: `https://SEU-DOMINIO.vercel.app/redefinir-senha`
+
+Se usar dominio proprio, adicione tambem as mesmas URLs com o dominio final.
 
 ## Acesso
 
@@ -126,6 +160,16 @@ database/gestao-financeira.sql
 
 Ele cria/ajusta `business_expenses` e `profit_distribution_settings`, com indices, triggers, RLS e policies.
 
+### Ajuste de pedidos multi-itens
+
+Para bancos ja populados, use o arquivo abaixo para adicionar unidade por item de pedido sem rodar o schema inteiro:
+
+```txt
+database/pedidos-multiplos-itens.sql
+```
+
+Ele adiciona `order_items.quantity_unit`, usado pela tela de pedidos com multiplos itens e unidades `un`, `g`, `kg`, `ml` e `l`.
+
 ## Marca
 
 - Nome: Casa Fratoni
@@ -148,9 +192,9 @@ components/brand/brand-logo.tsx
 - `/gestao`: painel financeiro visual por periodo
 - `/financeiro`: despesas e distribuicao de lucro
 - `/clientes`: clientes
-- `/ingredientes`: ingredientes e compras
+- `/ingredientes`: insumos e compras
 - `/receitas`: receitas e produtos
-- `/calculadoras`: calculadoras de preco e rendimento
+- `/calculadoras`: calculadoras de preco, rendimento e redimensionamento de receita
 - `/redefinir-senha`: troca de senha apos callback do Supabase
 
 ## Documentacao de contexto

@@ -76,19 +76,22 @@ Evite:
 - `app/(dashboard)/gestao`: painel financeiro visual de leitura
 - `app/(dashboard)/financeiro`: configuracoes financeiras, despesas e distribuicao
 - `database/gestao-financeira.sql`: ajuste pontual para criar tabelas financeiras em banco ja populado
+- `database/pedidos-multiplos-itens.sql`: ajuste pontual para adicionar unidade por item de pedido em banco ja populado
 - `components/ui`: componentes base
 - `components/brand/brand-logo.tsx`: logo reutilizavel
 
 ## Regras de dominio importantes
 
-- Ingredientes sao cadastrados como ingredientes base.
+- A UI usa o termo "Insumos" para itens de custo/estoque, mas a tabela principal segue como `ingredients`.
+- Insumos sao cadastrados como itens base.
 - Uma compra/lote registra quantidade informada, unidade, quantidade convertida, valor total, fornecedor opcional e data.
 - Ao registrar compra, o banco atualiza `current_stock` e `average_cost`.
-- Receitas usam o custo medio atual dos ingredientes.
+- Receitas usam o custo medio atual dos insumos.
 - Receitas podem ter passo a passo em `recipes.notes`.
-- Ingredientes de receitas podem ser adicionados, editados e removidos.
+- Insumos de receitas podem ser adicionados, editados e removidos.
 - Produtos sao o que entra no pedido e podem ficar vinculados a uma receita.
-- Pedidos salvam snapshot de custo/lucro para nao mudar historico quando o ingrediente mudar depois.
+- Pedidos podem ter multiplos itens/produtos/receitas, desconto, unidades por quantidade e resumo financeiro.
+- Pedidos salvam snapshot de custo/lucro para nao mudar historico quando o custo do insumo mudar depois.
 - Producao hoje e uma lista paginada e filtravel de pedidos por status e periodo; nao mostra ingredientes consolidados.
 - Gestao financeira usa dados reais dos pedidos e despesas cadastradas, sem mock na implementacao final.
 - Em relatorios financeiros, pedidos cancelados nao entram. Atualmente pedidos nao cancelados entram nos numeros para evitar tela zerada enquanto o fluxo de pagamento ainda nao estiver maduro.
@@ -97,6 +100,8 @@ Evite:
 - Se o lucro liquido do periodo for menor ou igual a zero, nao deve haver distribuicao de lucro.
 - Valores monetarios devem ser exibidos e recebidos em padrao brasileiro, com `R$` quando fizer sentido.
 - Medidas devem usar unidades claras: `g`, `kg`, `ml`, `l`, `un`.
+- Datas e horarios na UI devem usar `DD/MM/YYYY HH:MM`, sem textos extras como "as".
+- Tags de pedido devem aparecer como `Pedido 1`, `Pedido 2`, etc.; evitar `#FO`.
 
 ## Padroes de implementacao
 
@@ -123,17 +128,26 @@ O app ja tem:
 - modelo single-company
 - schema SQL com RLS, triggers e RPCs
 - CRUD inicial/edicao/exclusao de clientes
-- CRUD inicial de ingredientes e registro de compras/lotes
+- CRUD inicial de insumos e registro de compras/lotes
 - receitas e produtos com edicao/exclusao
-- cadastro e edicao de ingredientes da receita
-- pedidos com snapshots financeiros
+- cadastro, edicao e remocao de insumos da receita
+- pedidos com multiplos itens, edicao, exclusao, desconto e snapshots financeiros
 - producao como lista paginada e filtravel de pedidos
 - gestao financeira com filtros por periodo, cards, graficos simples e leitura dos pedidos/despesas
 - aba financeiro para cadastrar/editar/excluir despesas e salvar porcentagens da distribuicao de lucro
-- calculadoras de preco e rendimento
+- calculadoras de preco, rendimento e redimensionamento de receita com dados reais
 - dashboard com dados reais/demo
 - skeleton loading cru, sem textos falsos durante carregamento
 - estados de erro
 - toasts e modais de confirmacao em partes criticas
+
+## Git e deploy
+
+- Repositorio GitHub: `https://github.com/KauaLibrelato/FoodOrganizze.git`
+- Branch principal atual: `main`
+- Primeiro commit publicado: `6bd91af feat: initialize Casa Fratoni management app`
+- Deploy planejado: Vercel importando o repositorio GitHub.
+- Na Vercel, configurar `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_BUSINESS_NAME`, `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- No Supabase Auth, adicionar a URL de producao em Site URL e redirects, incluindo `/auth/callback` e `/redefinir-senha`.
 
 Veja tambem `docs/HANDOFF.md`.

@@ -25,7 +25,31 @@ npm run build
 
 O build passou. Pode aparecer warning conhecido da Supabase/Edge Runtime dependendo do import trace; quando aparecer, nao significa necessariamente quebra.
 
-Observacao deste workspace: no momento nao ha diretorio `.git` dentro de `FoodOrganizze`, entao `git status` falha localmente. Trate como uma copia de trabalho sem repositorio Git ativo ate confirmar o contrario.
+Repositorio Git:
+
+```txt
+https://github.com/KauaLibrelato/FoodOrganizze.git
+```
+
+Branch principal:
+
+```txt
+main
+```
+
+Primeiro commit publicado:
+
+```txt
+6bd91af feat: initialize Casa Fratoni management app
+```
+
+Antes de continuar um novo ciclo de mudancas, rode:
+
+```bash
+git status --short
+```
+
+Nao commitar `.env`, `.next`, `node_modules` ou `*.tsbuildinfo`; ja estao cobertos por `.gitignore`.
 
 ## Marca
 
@@ -223,9 +247,10 @@ Regra atual de pedidos financeiros:
 - modal de confirmacao para exclusao
 - confirmacao ao cancelar edicao com campos alterados
 
-### Ingredientes
+### Insumos
 
-- cadastro de ingrediente base
+- a UI usa "Insumos", mas o banco ainda usa `ingredients`
+- cadastro de insumo base
 - registro de primeira compra/lote
 - registro de novas compras
 - categoria e estoque minimo foram removidos da UI principal
@@ -238,17 +263,19 @@ Regra atual de pedidos financeiros:
 - calculadora de custo por rendimento
 - campos aceitam valores quebrados com virgula ou ponto
 - unidades e reais padronizados
-- calculadora de redimensionamento de receita foi removida
+- calculadora de redimensionamento de receita usa receitas reais e recalcula os insumos por fator de rendimento
 
 ### Receitas e produtos
 
 - receitas com edicao e exclusao
 - produtos com edicao e exclusao
 - passo a passo fica em `recipes.notes`
-- ingredientes da receita podem ser adicionados, editados e removidos
+- insumos da receita podem ser adicionados, editados e removidos
 - status/ativo foi removido da UI de produtos/receitas
 - selecao por query param usa `scroll={false}` para evitar voltar ao topo
-- cards com altura controlada e scroll interno
+- receitas ficam em uma faixa horizontal de selecao no topo
+- o formulario de receita fica abaixo, com dados da receita e insumos no mesmo bloco
+- ao criar uma receita, a area de insumos fica visivel como bloqueada ate salvar a base
 
 ### Pedidos
 
@@ -257,6 +284,9 @@ Regra atual de pedidos financeiros:
 - exclusao de pedido com confirmacao
 - resumo do pedido com linhas, totais, custo e lucro
 - quantidade por linha com unidade `un`, `g`, `kg`, `ml` ou `l`
+- desconto em valor ou porcentagem
+- custo estimado recalculado a partir da receita/insumos quando o snapshot enviado vem zerado
+- numero visual do pedido no formato `Pedido 1`, `Pedido 2`, sem `#FO`
 - status operacional
 - status de pagamento
 - snapshots de custo/lucro
@@ -298,6 +328,39 @@ Evitar cache global persistente para dados autenticados sem uma estrategia clara
 - A tela de login nao deve virar pagina scrollavel em uso normal; manter layout compacto.
 - Evitar excesso de informacao em Gestao. Configuracao e cadastro ficam em Financeiro.
 - Evitar textos dentro de skeletons; usar blocos neutros.
+- Datas e horarios devem aparecer como `DD/MM/YYYY HH:MM`.
+- Acoes criticas usam confirmacao; salvamentos e exclusoes devem disparar toast/feedback visual.
+
+## Deploy na Vercel
+
+O deploy planejado e pela Vercel importando o repositorio GitHub.
+
+Passos:
+
+1. Criar projeto na Vercel a partir de `KauaLibrelato/FoodOrganizze`.
+2. Framework: Next.js.
+3. Build command: `npm run build`.
+4. Output directory: deixar default/vazio.
+5. Configurar variaveis de ambiente.
+
+Variaveis:
+
+```env
+NEXT_PUBLIC_APP_URL=https://SEU-DOMINIO.vercel.app
+NEXT_PUBLIC_APP_NAME=Casa Fratoni
+NEXT_PUBLIC_BUSINESS_NAME=Casa Fratoni
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=SUA_ANON_KEY
+```
+
+Supabase Auth em producao:
+
+- Site URL: `https://SEU-DOMINIO.vercel.app`
+- Redirect URLs:
+  - `https://SEU-DOMINIO.vercel.app/auth/callback`
+  - `https://SEU-DOMINIO.vercel.app/redefinir-senha`
+
+Se usar dominio proprio, repetir as URLs com o dominio final.
 
 ## Arquivos que mais importam
 
@@ -356,14 +419,13 @@ Depois do build, reiniciar o dev server limpo antes de testar localmente.
 
 ## Pendencias e proximos passos recomendados
 
-1. Automatizar calculo de custo do pedido ao selecionar produto/receita.
-2. Adicionar edicao/exclusao completa em pedidos.
-3. Criar historico detalhado por cliente.
-4. Criar detalhe de ingrediente com historico de compras.
-5. Criar relatorio/exportacao da tela de producao.
-6. Confirmar no Supabase se `database/gestao-financeira.sql` ja foi rodado.
-7. Confirmar no Supabase se `database/pedidos-multiplos-itens.sql` ja foi rodado.
-8. Revisar Gestao/Financeiro com dados reais depois da migracao para calibrar os numeros.
-9. Adicionar testes unitarios para `lib/calculations`.
-10. Revisar todos os formularios para toasts/confirmacoes padronizados.
-11. Se precisar de cache persistente, usar tags por empresa e invalidacao em Server Actions.
+1. Confirmar no Supabase de producao se `database/gestao-financeira.sql` ja foi rodado.
+2. Confirmar no Supabase de producao se `database/pedidos-multiplos-itens.sql` ja foi rodado.
+3. Fazer deploy na Vercel e configurar redirects do Supabase Auth.
+4. Revisar Gestao/Financeiro com dados reais depois da migracao para calibrar os numeros.
+5. Criar historico detalhado por cliente.
+6. Criar detalhe de insumo com historico de compras.
+7. Criar relatorio/exportacao da tela de producao.
+8. Adicionar testes unitarios para `lib/calculations`.
+9. Revisar todos os formularios restantes para toasts/confirmacoes padronizados.
+10. Se precisar de cache persistente, usar tags por empresa e invalidacao em Server Actions.
