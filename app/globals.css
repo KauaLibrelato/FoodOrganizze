@@ -64,3 +64,26 @@
     border-color: rgba(234, 211, 165, 0.8);
   }
 }
+
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  aside,
+  body > nav,
+  body > header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

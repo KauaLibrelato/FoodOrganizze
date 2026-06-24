@@ -171,6 +171,18 @@ export type BusinessExpense = {
   updatedAt: string;
 };
 
+export type BusinessPaymentSettings = {
+  id: string;
+  businessId: string;
+  pixKey?: string | null;
+  pixHolderName?: string | null;
+  bankName?: string | null;
+  paymentLink?: string | null;
+  paymentInstructions?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProfitDistributionSettings = {
   id: string;
   businessId: string;

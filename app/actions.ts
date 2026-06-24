@@ -541,6 +541,49 @@ export async function updateProfitDistributionAction(formData: FormData) {
   revalidatePath("/financeiro");
 }
 
+export async function updatePaymentSettingsAction(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    revalidatePath("/financeiro");
+    revalidatePath("/pedidos");
+    return;
+  }
+
+  const businessId = await getBusinessId();
+  const paymentLink = getNullableString(formData, "payment_link");
+
+  if (paymentLink) {
+    try {
+      new URL(paymentLink);
+    } catch {
+      throw new Error("Informe um link de pagamento valido.");
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("business_payment_settings").upsert(
+    {
+      business_id: businessId,
+      pix_key: getNullableString(formData, "pix_key"),
+      pix_holder_name: getNullableString(formData, "pix_holder_name"),
+      bank_name: getNullableString(formData, "bank_name"),
+      payment_link: paymentLink,
+      payment_instructions: getNullableString(formData, "payment_instructions"),
+    },
+    { onConflict: "business_id" },
+  );
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      throw new Error("Rode o arquivo database/dados-pagamento.sql no Supabase antes de salvar os dados de pagamento.");
+    }
+
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/financeiro");
+  revalidatePath("/pedidos");
+}
+
 export async function updateCustomerAction(formData: FormData) {
   if (!isSupabaseConfigured()) {
     revalidatePath("/clientes");

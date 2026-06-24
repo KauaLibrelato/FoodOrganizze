@@ -232,6 +232,7 @@ Regra atual de pedidos financeiros:
 - fica no grupo "Financeiro" da sidebar
 - concentra configuracoes financeiras e despesas
 - permite cadastrar, editar e excluir despesas da empresa
+- permite cadastrar dados de pagamento da empresa para aparecerem no orcamento, como Pix, favorecido, banco, link e instrucoes
 - categorias sugeridas: Ingredientes, Embalagens, Entregas, Marketing, Energia, Agua, Aluguel, Equipamentos, Manutencao, Pro-labore e Outros
 - permite salvar distribuicao de lucro por porcentagem
 - distribuicao atual: Socios, Reinvestimento e Reserva de caixa
@@ -282,6 +283,8 @@ Regra atual de pedidos financeiros:
 - criacao de pedido com multiplos produtos/receitas
 - edicao de pedido
 - exclusao de pedido com confirmacao
+- visualizacao de orcamento em pagina propria
+- acoes no orcamento para compartilhar via WhatsApp, imprimir, baixar PNG e gerar PDF
 - resumo do pedido com linhas, totais, custo e lucro
 - quantidade por linha com unidade `un`, `g`, `kg`, `ml` ou `l`
 - desconto em valor ou porcentagem
@@ -421,11 +424,14 @@ Depois do build, reiniciar o dev server limpo antes de testar localmente.
 
 1. Confirmar no Supabase de producao se `database/gestao-financeira.sql` ja foi rodado.
 2. Confirmar no Supabase de producao se `database/pedidos-multiplos-itens.sql` ja foi rodado.
-3. Fazer deploy na Vercel e configurar redirects do Supabase Auth.
-4. Revisar Gestao/Financeiro com dados reais depois da migracao para calibrar os numeros.
-5. Criar historico detalhado por cliente.
-6. Criar detalhe de insumo com historico de compras.
-7. Criar relatorio/exportacao da tela de producao.
-8. Adicionar testes unitarios para `lib/calculations`.
-9. Revisar todos os formularios restantes para toasts/confirmacoes padronizados.
-10. Se precisar de cache persistente, usar tags por empresa e invalidacao em Server Actions.
+3. Ajustar fino o PNG do orcamento; a exportacao melhorou, mas ainda nao deve ser tratada como final.
+4. Melhorar o PDF do orcamento; ele ainda nao esta 100% pronto e precisa ficar consistente/bonito para envio a cliente.
+5. Realizar bateria de testes de performance, seguranca, regressao, responsividade, exportacao de arquivos e fluxos criticos.
+6. Fazer deploy na Vercel e configurar redirects do Supabase Auth.
+7. Revisar Gestao/Financeiro com dados reais depois da migracao para calibrar os numeros.
+8. Criar historico detalhado por cliente.
+9. Criar detalhe de insumo com historico de compras.
+10. Criar relatorio/exportacao da tela de producao.
+11. Adicionar testes unitarios para `lib/calculations`.
+12. Revisar todos os formularios restantes para toasts/confirmacoes padronizados.
+13. Se precisar de cache persistente, usar tags por empresa e invalidacao em Server Actions.

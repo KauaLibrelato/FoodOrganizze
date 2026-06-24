@@ -276,10 +276,9 @@ export function OrderForm({ action, customers, products, recipes, recipeCosts, s
             defaultValue={order?.paymentStatus ?? "pendente"}
           >
             <option value="pendente">Pendente</option>
-            <option value="sinal_pago">Sinal pago</option>
             <option value="pago">Pago</option>
-            <option value="atrasado">Atrasado</option>
             <option value="cancelado">Cancelado</option>
+            <option value="atrasado">Atrasado</option>
           </select>
         </div>
       </div>

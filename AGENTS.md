@@ -140,6 +140,14 @@ O app ja tem:
 - skeleton loading cru, sem textos falsos durante carregamento
 - estados de erro
 - toasts e modais de confirmacao em partes criticas
+- visualizacao de orcamento de pedido com acoes para compartilhar, imprimir, baixar PNG e gerar PDF
+- cadastro de dados de pagamento da empresa em Financeiro para exibir Pix/link/instrucoes no orcamento
+
+Pendencias importantes do estado atual:
+
+- o PNG do orcamento ainda precisa de ajuste fino visual antes de ser considerado final
+- o PDF do orcamento ainda nao esta 100% pronto; precisa ser revisado para ficar bonito, consistente e confiavel para envio a cliente
+- antes de tratar o app como pronto para producao, realizar bateria de testes de performance, seguranca, regressao, responsividade, exportacao de arquivos e fluxos criticos de auth/pedidos/financeiro
 
 ## Git e deploy
 

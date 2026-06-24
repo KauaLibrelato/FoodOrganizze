@@ -8,6 +8,7 @@ import {
 } from "@/lib/calculations";
 import type {
   BusinessExpense,
+  BusinessPaymentSettings,
   Customer,
   ExpenseCategory,
   Ingredient,
@@ -221,6 +222,18 @@ export const demoPricingSettings: PricingSettings = {
 
 export const demoExpenses: BusinessExpense[] = [];
 
+export const demoPaymentSettings: BusinessPaymentSettings = {
+  id: "demo-payment-settings",
+  businessId: "demo-business",
+  pixKey: "contato@casafratoni.com.br",
+  pixHolderName: "Casa Fratoni",
+  bankName: "Banco exemplo",
+  paymentLink: null,
+  paymentInstructions: "Envie o comprovante pelo WhatsApp para confirmarmos o pedido.",
+  createdAt: now,
+  updatedAt: now,
+};
+
 export const demoProfitDistributionSettings: ProfitDistributionSettings = {
   id: "demo-profit-distribution-settings",
   businessId: "demo-business",
@@ -341,6 +354,20 @@ function mapBusinessExpense(row: Record<string, unknown>): BusinessExpense {
     amount: Number(row.amount),
     expenseDate: String(row.expense_date),
     notes: row.notes ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+function mapBusinessPaymentSettings(row: Record<string, unknown>): BusinessPaymentSettings {
+  return {
+    id: String(row.id),
+    businessId: String(row.business_id),
+    pixKey: row.pix_key ? String(row.pix_key) : null,
+    pixHolderName: row.pix_holder_name ? String(row.pix_holder_name) : null,
+    bankName: row.bank_name ? String(row.bank_name) : null,
+    paymentLink: row.payment_link ? String(row.payment_link) : null,
+    paymentInstructions: row.payment_instructions ? String(row.payment_instructions) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -509,6 +536,22 @@ export const getBusinessExpenses = cache(async function getBusinessExpenses() {
     throw new Error(error.message);
   }
   return (data ?? []).map(mapBusinessExpense);
+});
+
+export const getBusinessPaymentSettings = cache(async function getBusinessPaymentSettings() {
+  if (!isSupabaseConfigured()) return demoPaymentSettings;
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("business_payment_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw new Error(error.message);
+  }
+  return data ? mapBusinessPaymentSettings(data) : null;
 });
 
 export const getProfitDistributionSettings = cache(async function getProfitDistributionSettings() {

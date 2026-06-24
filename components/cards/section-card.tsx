@@ -7,11 +7,12 @@ type SectionCardProps = {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  id?: string;
 };
 
-export function SectionCard({ title, description, children, className, contentClassName }: SectionCardProps) {
+export function SectionCard({ title, description, children, className, contentClassName, id }: SectionCardProps) {
   return (
-    <Card className={cn("flex flex-col", className)}>
+    <Card id={id} className={cn("flex flex-col scroll-mt-20", className)}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}

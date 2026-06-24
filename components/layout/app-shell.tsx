@@ -1,4 +1,4 @@
-import { AppSidebar, MobileBottomNav } from "@/components/layout/app-sidebar";
+import { AppSidebar, MobileBottomNav, MobileTopBar } from "@/components/layout/app-sidebar";
 import { getAccountContext } from "@/lib/auth-context";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -7,8 +7,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar accountEmail={accountEmail} />
+      <MobileTopBar accountEmail={accountEmail} />
       <div className="md:pl-72">
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 md:px-6 md:py-8 md:pb-10">
+        <main className="mx-auto w-full max-w-7xl px-3 py-4 pb-28 pt-20 sm:px-4 md:px-6 md:py-8 md:pb-10">
           {children}
         </main>
       </div>

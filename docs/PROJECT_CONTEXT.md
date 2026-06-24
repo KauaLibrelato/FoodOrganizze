@@ -356,6 +356,10 @@ Regras atuais:
 - pedidos salvam snapshots financeiros para preservar historico
 - exibicao visual usa `Pedido 1`, `Pedido 2`, etc., sem `#FO`
 - datas e horarios exibem `DD/MM/YYYY HH:MM`
+- existe uma pagina propria de orcamento do pedido com acoes para compartilhar, imprimir, baixar PNG e gerar PDF
+- os dados de pagamento exibidos no orcamento vem da configuracao financeira da empresa quando cadastrados
+- o PNG do orcamento ainda precisa de ajuste fino visual
+- o PDF do orcamento ainda nao esta 100% pronto e precisa de revisao antes de ser considerado definitivo para clientes
 
 ## Receitas e produtos
 
@@ -440,6 +444,8 @@ Ja existe:
 - producao por pedidos com filtros e paginacao
 - gestao financeira com cards, filtros, graficos simples e distribuicao de lucro
 - financeiro para despesas e configuracao de porcentagens
+- financeiro para dados de pagamento que aparecem no orcamento
+- orcamento de pedido com acoes de compartilhar/imprimir/exportar
 - calculadoras de preco, rendimento e redimensionamento de receita
 - skeleton loading cru, sem textos falsos nos blocos
 - estados de erro
@@ -450,6 +456,11 @@ Ja existe:
 
 - confirmar/aplicar `database/gestao-financeira.sql` no Supabase real
 - confirmar/aplicar `database/pedidos-multiplos-itens.sql` no Supabase real
+- ajustar fino o PNG do orcamento
+- melhorar o PDF do orcamento, que ainda nao esta 100% pronto
+- realizar bateria de testes de performance
+- realizar bateria de testes de seguranca
+- realizar testes de regressao, responsividade, exportacao e fluxos criticos de negocio
 - fazer deploy na Vercel e configurar redirects do Supabase Auth
 - revisar Gestao/Financeiro com dados reais apos aplicar a migracao
 - historico detalhado do cliente

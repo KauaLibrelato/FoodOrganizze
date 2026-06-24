@@ -50,11 +50,10 @@ const navGroups = [
 ];
 
 const mobileItems = [
-  navGroups[0].items[0],
-  navGroups[0].items[1],
-  navGroups[0].items[2],
-  navGroups[1].items[0],
-  navGroups[2].items[0],
+  ...navGroups[0].items,
+  ...navGroups[1].items,
+  ...navGroups[2].items,
+  ...navGroups[3].items,
 ];
 
 export function AppSidebar({ accountEmail }: { accountEmail: string }) {
@@ -112,24 +111,48 @@ export function AppSidebar({ accountEmail }: { accountEmail: string }) {
   );
 }
 
+export function MobileTopBar({ accountEmail }: { accountEmail: string }) {
+  return (
+    <header className="fixed left-0 right-0 top-0 z-40 border-b border-cream-300 bg-cream-50/95 px-3 py-2 shadow-sm backdrop-blur md:hidden">
+      <div className="flex min-h-12 items-center justify-between gap-3">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2 rounded-xl px-1 py-1">
+          <BrandLogo className="w-24 shrink-0" />
+        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="hidden min-w-0 text-right min-[380px]:block">
+            <p className="truncate text-xs font-semibold text-cocoa-700">{accountEmail}</p>
+          </div>
+          <form action={signOutAction}>
+            <Button size="icon" type="submit" variant="outline" aria-label="Sair">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-cream-300 bg-card/95 px-2 py-2 shadow-[0_-16px_35px_rgba(73,48,40,0.08)] backdrop-blur md:hidden">
-      {mobileItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "flex flex-col items-center gap-1 rounded-2xl px-2 py-1.5 text-[11px] font-semibold text-cocoa-400 transition-colors",
-            pathname === item.href && "bg-blush-50 text-brand-700",
-          )}
-        >
-          <item.icon className="h-5 w-5" />
-          <span className="max-w-full truncate">{item.label}</span>
-        </Link>
-      ))}
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-cream-300 bg-card/95 px-2 py-2 shadow-[0_-16px_35px_rgba(73,48,40,0.08)] backdrop-blur md:hidden">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {mobileItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex min-w-[74px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-cocoa-400 transition-colors",
+              pathname === item.href && "bg-blush-50 text-brand-700",
+            )}
+          >
+            <item.icon className="h-5 w-5" />
+            <span className="max-w-full truncate">{item.label}</span>
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }

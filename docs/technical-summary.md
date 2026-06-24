@@ -51,6 +51,8 @@ Pedidos e itens salvam snapshots de custo e lucro para preservar historico quand
 - Produtos podem se vincular a receitas.
 - Pedidos possuem multiplos itens, desconto, status operacional, status de pagamento e snapshots financeiros.
 - Itens de pedido guardam unidade da quantidade em `quantity_unit`.
+- Orcamentos de pedido podem ser visualizados em pagina propria com acoes de compartilhar, imprimir, baixar PNG e gerar PDF.
+- Dados de pagamento da empresa podem ser cadastrados para aparecer no orcamento.
 - Datas e horarios na UI seguem `DD/MM/YYYY HH:MM`.
 - Numeracao visual de pedidos usa `Pedido 1`, `Pedido 2`, etc., sem `#FO`.
 - Producao lista pedidos paginados e filtraveis por status/data; nao consolida ingredientes na UI atual.
@@ -93,8 +95,18 @@ O app ja tem:
 - producao por pedidos com filtros e paginacao
 - gestao financeira
 - financeiro/despesas/distribuicao
+- configuracao de dados de pagamento
+- pagina de orcamento com exportacao PNG/PDF em evolucao
 - calculadoras de preco/rendimento/redimensionamento de receita
 - skeleton loading cru, estados de erro, toasts e confirmacoes
+
+## Pendencias tecnicas importantes
+
+- O PNG do orcamento ainda precisa de ajuste fino visual.
+- O PDF do orcamento ainda nao esta 100% pronto para ser considerado definitivo.
+- Ainda falta uma bateria de testes de performance.
+- Ainda falta uma bateria de testes de seguranca.
+- Ainda faltam testes de regressao, responsividade, exportacao PDF/PNG e fluxos criticos de auth, pedidos e financeiro.
 
 ## Arquivos-chave
 

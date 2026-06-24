@@ -1,4 +1,5 @@
-import { ClipboardList, Pencil, Search, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, Eye, Pencil, Search, Trash2 } from "lucide-react";
 import { createOrderAction, deleteOrderAction, updateOrderAction } from "@/app/actions";
 import { PageTitle } from "@/components/dashboard/page-title";
 import { SectionCard } from "@/components/cards/section-card";
@@ -43,9 +44,17 @@ export default async function OrdersPage() {
         title="Pedidos"
         description="Acompanhe encomendas, pagamentos, custos salvos e lucro estimado."
       />
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Buscar por cliente, produto ou número" />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder="Buscar por cliente, produto ou número" />
+        </div>
+        <a
+          href="#novo-pedido"
+          className="brand-focus inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-brand-600 xl:hidden"
+        >
+          Novo pedido
+        </a>
       </div>
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
         <SectionCard title="Pedidos cadastrados" description="Veja o resumo, edite dados e acompanhe os itens de cada pedido.">
@@ -120,13 +129,38 @@ export default async function OrdersPage() {
                   {order.notes ? (
                     <p className="mt-3 rounded-xl bg-blush-50 px-3 py-2 text-sm text-cocoa-600">{order.notes}</p>
                   ) : null}
-                  <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto]">
-                    <details className="rounded-xl border border-cream-300 bg-cream-50 p-3">
-                      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-cocoa-700">
+                  <div className="mt-3 space-y-3">
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Link
+                        href={`/pedidos/${order.id}/orcamento`}
+                        className="brand-focus inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-brand-600"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Abrir orçamento
+                      </Link>
+                      <form action={deleteOrderAction} className="self-start">
+                        <input type="hidden" name="order_id" value={order.id} />
+                        <ConfirmActionButton
+                          variant="outline"
+                          className="w-full border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 sm:w-auto"
+                          title="Excluir pedido?"
+                          description={`Isso remove o ${formatOrderLabel(order.orderNumber)} e todos os produtos/receitas vinculados a ele.`}
+                          confirmLabel="Excluir"
+                          successTitle="Pedido excluido"
+                          successDescription="A lista de pedidos sera atualizada."
+                          tone="danger"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir
+                        </ConfirmActionButton>
+                      </form>
+                    </div>
+                    <details className="rounded-xl border border-cream-300 bg-cream-50">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-cocoa-700 transition-colors hover:bg-blush-50 hover:text-brand-700">
                         <Pencil className="h-4 w-4" />
                         Editar pedido
                       </summary>
-                      <div className="mt-4 border-t border-cream-300 pt-4">
+                      <div className="border-t border-cream-300 p-3">
                         <OrderForm
                           action={updateOrderAction}
                           customers={customers}
@@ -139,22 +173,6 @@ export default async function OrdersPage() {
                         />
                       </div>
                     </details>
-                    <form action={deleteOrderAction} className="self-start">
-                      <input type="hidden" name="order_id" value={order.id} />
-                      <ConfirmActionButton
-                        variant="outline"
-                        className="w-full border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 lg:w-auto"
-                        title="Excluir pedido?"
-                        description={`Isso remove o ${formatOrderLabel(order.orderNumber)} e todos os produtos/receitas vinculados a ele.`}
-                        confirmLabel="Excluir"
-                        successTitle="Pedido excluido"
-                        successDescription="A lista de pedidos sera atualizada."
-                        tone="danger"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Excluir
-                      </ConfirmActionButton>
-                    </form>
                   </div>
                 </article>
               );
@@ -163,7 +181,7 @@ export default async function OrdersPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Novo pedido" description="Monte um pedido com varios produtos ou receitas e confira o resumo antes de salvar.">
+        <SectionCard id="novo-pedido" title="Novo pedido" description="Monte um pedido com varios produtos ou receitas e confira o resumo antes de salvar.">
           <OrderForm
             action={createOrderAction}
             customers={customers}

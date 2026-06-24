@@ -21,6 +21,8 @@ O sistema ajuda a confeitaria a organizar:
 - gestao financeira por periodo
 - cadastro de despesas da empresa
 - configuracao de distribuicao de lucro
+- dados de pagamento da empresa para aparecerem no orcamento
+- visualizacao de orcamento com acoes de compartilhar, imprimir, baixar imagem e gerar PDF
 - calculadoras de preco de venda, rendimento e redimensionamento de receita
 
 ## Stack
@@ -203,3 +205,10 @@ components/brand/brand-logo.tsx
 - `docs/PROJECT_CONTEXT.md`: contexto completo de produto, arquitetura, dominio e visual.
 - `docs/HANDOFF.md`: estado atual, comandos, banco, pendencias e proximos passos.
 - `docs/technical-summary.md`: resumo tecnico compacto.
+
+## Pendencias antes de producao
+
+- Ajustar fino o PNG do orcamento; a exportacao visual ainda nao deve ser considerada final.
+- Melhorar o PDF do orcamento; ele ainda nao esta 100% pronto para envio recorrente a clientes.
+- Realizar bateria de testes de performance, seguranca, regressao, responsividade e fluxos criticos.
+- Validar exportacao de PDF/PNG em desktop e mobile com dados reais e pedidos maiores.

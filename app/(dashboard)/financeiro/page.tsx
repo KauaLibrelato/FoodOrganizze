@@ -17,13 +17,14 @@ import { PageTitle } from "@/components/dashboard/page-title";
 import { ConfirmActionButton, ToastSubmitButton } from "@/components/forms/confirm-action-button";
 import { CurrencyInput } from "@/components/forms/currency-input";
 import { ManagementPeriodFilter } from "@/components/forms/management-period-filter";
+import { PaymentSettingsForm } from "@/components/forms/payment-settings-form";
 import { ProfitDistributionForm } from "@/components/forms/profit-distribution-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDate } from "@/lib/calculations";
-import { getManagementData } from "@/lib/data";
+import { getBusinessPaymentSettings, getManagementData } from "@/lib/data";
 import type { ExpenseCategory } from "@/types";
 
 type FinancePageProps = {
@@ -58,11 +59,14 @@ const expenseCategories: ExpenseCategory[] = [
 
 export default async function FinancePage({ searchParams }: FinancePageProps) {
   const params = await searchParams;
-  const management = await getManagementData({
-    periodo: params?.periodo,
-    inicio: params?.inicio,
-    fim: params?.fim,
-  });
+  const [management, paymentSettings] = await Promise.all([
+    getManagementData({
+      periodo: params?.periodo,
+      inicio: params?.inicio,
+      fim: params?.fim,
+    }),
+    getBusinessPaymentSettings(),
+  ]);
 
   const { filters, summary, distributionSettings } = management;
   const periodLabel =
@@ -101,6 +105,10 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
 
       <SectionCard title="Distribuição do lucro" description="Configure apenas os percentuais. A Gestão calcula os valores com o lucro do período.">
         <ProfitDistributionForm settings={distributionSettings} />
+      </SectionCard>
+
+      <SectionCard title="Dados de pagamento" description="Defina Pix, favorecido e link para aparecerem nos orçamentos enviados aos clientes.">
+        <PaymentSettingsForm settings={paymentSettings} />
       </SectionCard>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
