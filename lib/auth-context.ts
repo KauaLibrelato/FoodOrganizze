@@ -1,16 +1,20 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { DEFAULT_BUSINESS_NAME } from "@/lib/brand";
-import { isSupabaseConfigured } from "@/lib/env";
+import { isDemoModeAllowed, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 export const getAccountContext = cache(async () => {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     return {
       accountEmail: "Modo demonstração",
       businessId: "demo-business",
       userId: null,
     };
+  }
+
+  if (!isSupabaseConfigured()) {
+    redirect("/login?erro=config");
   }
 
   const supabase = await createClient();

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createOrderPdf } from "@/lib/order-pdf";
-import { getBusinessPaymentSettings, getCustomers, getOrderItems, getOrders } from "@/lib/data";
+import { getBusinessPaymentSettings, getCustomerById, getOrderById, getOrderItemsByOrderId } from "@/lib/data";
 import { formatOrderLabel } from "@/lib/calculations";
 
 export const runtime = "nodejs";
@@ -24,20 +24,17 @@ function filenameFor(orderNumber: string) {
 
 export async function GET(_request: Request, context: RouteContext) {
   const { orderId } = await context.params;
-  const [orders, orderItems, customers, paymentSettings] = await Promise.all([
-    getOrders(),
-    getOrderItems(),
-    getCustomers(),
+  const [order, items, paymentSettings] = await Promise.all([
+    getOrderById(orderId),
+    getOrderItemsByOrderId(orderId),
     getBusinessPaymentSettings(),
   ]);
-  const order = orders.find((item) => item.id === orderId);
 
   if (!order) {
     return new NextResponse("Pedido nao encontrado.", { status: 404 });
   }
 
-  const items = orderItems.filter((item) => item.orderId === order.id);
-  const customer = order.customerId ? customers.find((item) => item.id === order.customerId) : undefined;
+  const customer = order.customerId ? (await getCustomerById(order.customerId)) ?? undefined : undefined;
   const pdf = createOrderPdf(order, items, customer, paymentSettings);
 
   return new NextResponse(pdf, {

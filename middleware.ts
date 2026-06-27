@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
-import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/env";
+import { getSupabaseAnonKey, getSupabaseUrl, isDemoModeAllowed, isSupabaseConfigured } from "@/lib/env";
 
 type CookieToSet = {
   name: string;
@@ -10,8 +10,22 @@ type CookieToSet = {
 };
 
 export async function middleware(request: NextRequest) {
+  const publicRoutes = ["/login", "/auth/callback", "/redefinir-senha"];
+  const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
+
   if (!isSupabaseConfigured()) {
-    return NextResponse.next({ request });
+    if (isDemoModeAllowed()) {
+      return NextResponse.next({ request });
+    }
+
+    if (isPublicRoute) {
+      return NextResponse.next({ request });
+    }
+
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("erro", "config");
+    return NextResponse.redirect(url);
   }
 
   let response = NextResponse.next({ request });
@@ -35,8 +49,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const publicRoutes = ["/login", "/auth/callback", "/redefinir-senha"];
-  const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
   const isDashboardRoute = !isPublicRoute;
   if (!user && isDashboardRoute) {
     const url = request.nextUrl.clone();

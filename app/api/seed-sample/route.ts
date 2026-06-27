@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getBusinessId } from "@/lib/auth-context";
-import { isSupabaseConfigured } from "@/lib/env";
+import { isSeedRouteAllowed, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -44,9 +44,17 @@ async function getOrCreateByName<T extends { id: string; name: string }>(
   return existingByName;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
+  return new NextResponse("Not found", { status: 404 });
+}
+
+export async function POST(request: NextRequest) {
+  if (!isSeedRouteAllowed()) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   if (!isSupabaseConfigured()) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return new NextResponse("Supabase não configurado.", { status: 503 });
   }
 
   const supabase = await createClient();

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isSupabaseConfigured } from "@/lib/env";
+import { isDemoModeAllowed, isSupabaseConfigured } from "@/lib/env";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -17,7 +17,8 @@ const errorMessages: Record<string, string> = {
   campos: "Preencha e-mail e senha para continuar.",
   credenciais: "E-mail ou senha inválidos.",
   acesso: "Seu usuário precisa ser cadastrado antes de entrar.",
-  email_nao_cadastrado: "Esse e-mail não está cadastrado no sistema.",
+  config: "A configuração de acesso ainda não está pronta. Revise as variáveis do Supabase.",
+  limite: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
   reset: "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
   reset_config: "A validação de usuários ainda não está configurada no banco.",
 };
@@ -27,7 +28,7 @@ const successMessages: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const demoMode = !isSupabaseConfigured();
+  const demoMode = !isSupabaseConfigured() && isDemoModeAllowed();
   const params = await searchParams;
   const errorMessage = params?.erro ? errorMessages[params.erro] ?? errorMessages.acesso : null;
   const successMessage = params?.sucesso ? successMessages[params.sucesso] : null;

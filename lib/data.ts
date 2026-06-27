@@ -1,11 +1,12 @@
 import { cache } from "react";
 import { getBusinessId } from "@/lib/auth-context";
-import { isSupabaseConfigured } from "@/lib/env";
+import { isDemoModeAllowed, isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import {
   calculateRecipeCost,
   calculateRecipeCostPerYield,
 } from "@/lib/calculations";
+import { groupByKey } from "@/lib/data-helpers";
 import type {
   BusinessExpense,
   BusinessPaymentSettings,
@@ -27,6 +28,46 @@ import type {
 const now = new Date().toISOString();
 const today = new Date().toISOString().slice(0, 10);
 const currentMonth = today.slice(0, 7);
+const customerColumns = "id,business_id,name,phone,address,notes,created_at,updated_at";
+const orderColumns = [
+  "id",
+  "business_id",
+  "customer_id",
+  "order_number",
+  "delivery_date",
+  "delivery_time",
+  "status",
+  "payment_status",
+  "payment_method",
+  "subtotal",
+  "discount",
+  "delivery_fee",
+  "total_price",
+  "total_cost_snapshot",
+  "estimated_profit_snapshot",
+  "notes",
+  "created_at",
+  "updated_at",
+].join(",");
+const orderItemColumns = [
+  "id",
+  "business_id",
+  "order_id",
+  "product_id",
+  "recipe_id",
+  "name",
+  "quantity",
+  "quantity_unit",
+  "unit_price",
+  "total_price",
+  "unit_cost_snapshot",
+  "total_cost_snapshot",
+  "profit_snapshot",
+  "notes",
+  "created_at",
+  "updated_at",
+].join(",");
+const expenseColumns = "id,business_id,description,category,amount,expense_date,notes,created_at,updated_at";
 
 export const demoCustomers: Customer[] = [
   {
@@ -257,6 +298,10 @@ function mapCustomer(row: Record<string, unknown>): Customer {
   };
 }
 
+function mapCustomerRow(row: unknown) {
+  return mapCustomer(row as Record<string, unknown>);
+}
+
 function mapIngredient(row: Record<string, unknown>): Ingredient {
   return {
     id: String(row.id),
@@ -324,6 +369,10 @@ function mapOrder(row: Record<string, unknown>): Order {
   };
 }
 
+function mapOrderRow(row: unknown) {
+  return mapOrder(row as Record<string, unknown>);
+}
+
 function mapOrderItem(row: Record<string, unknown>): OrderItem {
   return {
     id: String(row.id),
@@ -345,6 +394,10 @@ function mapOrderItem(row: Record<string, unknown>): OrderItem {
   };
 }
 
+function mapOrderItemRow(row: unknown) {
+  return mapOrderItem(row as Record<string, unknown>);
+}
+
 function mapBusinessExpense(row: Record<string, unknown>): BusinessExpense {
   return {
     id: String(row.id),
@@ -357,6 +410,10 @@ function mapBusinessExpense(row: Record<string, unknown>): BusinessExpense {
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
+}
+
+function mapBusinessExpenseRow(row: unknown) {
+  return mapBusinessExpense(row as Record<string, unknown>);
 }
 
 function mapBusinessPaymentSettings(row: Record<string, unknown>): BusinessPaymentSettings {
@@ -395,20 +452,20 @@ function isMissingTableError(error: { code?: string; message?: string }) {
 }
 
 export const getCustomers = cache(async function getCustomers() {
-  if (!isSupabaseConfigured()) return demoCustomers;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoCustomers;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("customers")
-    .select("*")
+    .select(customerColumns)
     .eq("business_id", businessId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapCustomer);
+  return (data ?? []).map(mapCustomerRow);
 });
 
 export const getIngredients = cache(async function getIngredients() {
-  if (!isSupabaseConfigured()) return demoIngredients;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoIngredients;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -421,7 +478,7 @@ export const getIngredients = cache(async function getIngredients() {
 });
 
 export const getIngredientPurchases = cache(async function getIngredientPurchases() {
-  if (!isSupabaseConfigured()) return demoPurchases;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoPurchases;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -448,7 +505,7 @@ export const getIngredientPurchases = cache(async function getIngredientPurchase
 });
 
 export const getRecipes = cache(async function getRecipes() {
-  if (!isSupabaseConfigured()) return demoRecipes;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoRecipes;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -461,7 +518,7 @@ export const getRecipes = cache(async function getRecipes() {
 });
 
 export const getRecipeIngredients = cache(async function getRecipeIngredients() {
-  if (!isSupabaseConfigured()) return demoRecipeIngredients;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoRecipeIngredients;
   const [businessId, ingredients] = await Promise.all([getBusinessId(), getIngredients()]);
   const ingredientMap = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]));
   const supabase = await createClient();
@@ -485,7 +542,7 @@ export const getRecipeIngredients = cache(async function getRecipeIngredients() 
 });
 
 export const getProducts = cache(async function getProducts() {
-  if (!isSupabaseConfigured()) return demoProducts;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoProducts;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -498,48 +555,96 @@ export const getProducts = cache(async function getProducts() {
 });
 
 export const getOrders = cache(async function getOrders() {
-  if (!isSupabaseConfigured()) return demoOrders;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoOrders;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(orderColumns)
     .eq("business_id", businessId)
     .order("delivery_date", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapOrder);
+  return (data ?? []).map(mapOrderRow);
+});
+
+export const getOrderById = cache(async function getOrderById(orderId: string) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    return demoOrders.find((order) => order.id === orderId) ?? null;
+  }
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(orderColumns)
+    .eq("business_id", businessId)
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapOrderRow(data) : null;
 });
 
 export const getOrderItems = cache(async function getOrderItems() {
-  if (!isSupabaseConfigured()) return demoOrderItems;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoOrderItems;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("order_items")
-    .select("*")
+    .select(orderItemColumns)
     .eq("business_id", businessId);
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapOrderItem);
+  return (data ?? []).map(mapOrderItemRow);
+});
+
+export const getOrderItemsByOrderId = cache(async function getOrderItemsByOrderId(orderId: string) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    return demoOrderItems.filter((item) => item.orderId === orderId);
+  }
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("order_items")
+    .select(orderItemColumns)
+    .eq("business_id", businessId)
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapOrderItemRow);
+});
+
+export const getCustomerById = cache(async function getCustomerById(customerId: string) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    return demoCustomers.find((customer) => customer.id === customerId) ?? null;
+  }
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("customers")
+    .select(customerColumns)
+    .eq("business_id", businessId)
+    .eq("id", customerId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapCustomerRow(data) : null;
 });
 
 export const getBusinessExpenses = cache(async function getBusinessExpenses() {
-  if (!isSupabaseConfigured()) return demoExpenses;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoExpenses;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("business_expenses")
-    .select("*")
+    .select(expenseColumns)
     .eq("business_id", businessId)
     .order("expense_date", { ascending: false });
   if (error) {
     if (isMissingTableError(error)) return [];
     throw new Error(error.message);
   }
-  return (data ?? []).map(mapBusinessExpense);
+  return (data ?? []).map(mapBusinessExpenseRow);
 });
 
 export const getBusinessPaymentSettings = cache(async function getBusinessPaymentSettings() {
-  if (!isSupabaseConfigured()) return demoPaymentSettings;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoPaymentSettings;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -555,7 +660,7 @@ export const getBusinessPaymentSettings = cache(async function getBusinessPaymen
 });
 
 export const getProfitDistributionSettings = cache(async function getProfitDistributionSettings() {
-  if (!isSupabaseConfigured()) return demoProfitDistributionSettings;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) return demoProfitDistributionSettings;
   const businessId = await getBusinessId();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -708,22 +813,61 @@ function buildChartPoints(orders: Order[], expenses: BusinessExpense[], startDat
   });
 }
 
+async function getOrdersForManagementPeriod(startDate: string, endDate: string) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    return demoOrders
+      .filter(isFinancialOrder)
+      .filter((order) => order.deliveryDate >= startDate && order.deliveryDate <= endDate);
+  }
+
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(orderColumns)
+    .eq("business_id", businessId)
+    .neq("status", "cancelado")
+    .neq("payment_status", "cancelado")
+    .gte("delivery_date", startDate)
+    .lte("delivery_date", endDate)
+    .order("delivery_date", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapOrderRow);
+}
+
+async function getExpensesForManagementPeriod(startDate: string, endDate: string) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    return demoExpenses.filter((expense) => expense.expenseDate >= startDate && expense.expenseDate <= endDate);
+  }
+
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("business_expenses")
+    .select(expenseColumns)
+    .eq("business_id", businessId)
+    .gte("expense_date", startDate)
+    .lte("expense_date", endDate)
+    .order("expense_date", { ascending: false });
+
+  if (error) {
+    if (isMissingTableError(error)) return [];
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(mapBusinessExpenseRow);
+}
+
 export const getManagementData = cache(async function getManagementData(filters: ManagementFilters = {}) {
-  const [orders, expenses, distributionSettings] = await Promise.all([
-    getOrders(),
-    getBusinessExpenses(),
-    getProfitDistributionSettings(),
-  ]);
   const range = getPeriodRange(filters);
   const startDate = range.startDate <= range.endDate ? range.startDate : range.endDate;
   const endDate = range.endDate >= range.startDate ? range.endDate : range.startDate;
-
-  const periodOrders = orders
-    .filter(isFinancialOrder)
-    .filter((order) => order.deliveryDate >= startDate && order.deliveryDate <= endDate);
-  const periodExpenses = expenses.filter(
-    (expense) => expense.expenseDate >= startDate && expense.expenseDate <= endDate,
-  );
+  const [periodOrders, periodExpenses, distributionSettings] = await Promise.all([
+    getOrdersForManagementPeriod(startDate, endDate),
+    getExpensesForManagementPeriod(startDate, endDate),
+    getProfitDistributionSettings(),
+  ]);
 
   const revenue = periodOrders.reduce((sum, order) => sum + order.totalPrice, 0);
   const costs = periodOrders.reduce((sum, order) => sum + order.totalCostSnapshot, 0);
@@ -737,7 +881,7 @@ export const getManagementData = cache(async function getManagementData(filters:
       startDate,
       endDate,
     },
-    expenses,
+    expenses: periodExpenses,
     periodExpenses,
     distributionSettings: distributionSettings ?? demoProfitDistributionSettings,
     chartPoints: buildChartPoints(periodOrders, periodExpenses, startDate, endDate),
@@ -810,8 +954,12 @@ export const getDashboardData = cache(async function getDashboardData() {
   const lowStockIngredients = ingredients.filter(
     (ingredient) => ingredient.currentStock <= ingredient.minimumStock,
   );
+  const ingredientsByRecipe = groupByKey(
+    recipeIngredients.filter((item) => item.ingredient),
+    (item) => item.recipeId,
+  );
   const recipeCosts = recipes.map((recipe) => {
-    const items = recipeIngredients.filter((item) => item.recipeId === recipe.id && item.ingredient);
+    const items = ingredientsByRecipe.get(recipe.id) ?? [];
     const cost = calculateRecipeCost(items as Required<RecipeIngredient>[]);
     return {
       recipe,
@@ -839,34 +987,139 @@ export const getDashboardData = cache(async function getDashboardData() {
 });
 
 export const getProductionData = cache(async function getProductionData(filters: ProductionFilters = {}) {
-  const [orders, orderItems] = await Promise.all([getOrders(), getOrderItems()]);
   const status = normalizeProductionStatus(filters.status);
   const startDate = normalizeProductionDate(filters.startDate);
   const endDate = normalizeProductionDate(filters.endDate);
   const pageSize = filters.pageSize && filters.pageSize > 0 ? Math.floor(filters.pageSize) : 10;
 
-  const filteredOrders = orders
-    .filter((order) => {
-      const matchesStatus = status === "todos" || order.status === (status as OrderStatus);
-      const matchesStart = !startDate || order.deliveryDate >= startDate;
-      const matchesEnd = !endDate || order.deliveryDate <= endDate;
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
+    const orders = demoOrders;
+    const filteredOrders = orders
+      .filter((order) => {
+        const matchesStatus = status === "todos" || order.status === (status as OrderStatus);
+        const matchesStart = !startDate || order.deliveryDate >= startDate;
+        const matchesEnd = !endDate || order.deliveryDate <= endDate;
 
-      return matchesStatus && matchesStart && matchesEnd;
-    })
-    .sort((a, b) => {
-      const dateCompare = b.deliveryDate.localeCompare(a.deliveryDate);
-      return dateCompare === 0 ? b.createdAt.localeCompare(a.createdAt) : dateCompare;
-    });
+        return matchesStatus && matchesStart && matchesEnd;
+      })
+      .sort((a, b) => {
+        const dateCompare = b.deliveryDate.localeCompare(a.deliveryDate);
+        return dateCompare === 0 ? b.createdAt.localeCompare(a.createdAt) : dateCompare;
+      });
 
-  const totalOrders = filteredOrders.length;
+    const totalOrders = filteredOrders.length;
+    const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+    const page = Math.min(normalizeProductionPage(filters.page), totalPages);
+    const pageOrders = filteredOrders.slice((page - 1) * pageSize, page * pageSize);
+    const pageOrderIds = new Set(pageOrders.map((order) => order.id));
+
+    return {
+      orders: pageOrders,
+      orderItems: demoOrderItems.filter((item) => pageOrderIds.has(item.orderId)),
+      filters: {
+        status,
+        startDate,
+        endDate,
+      },
+      pagination: {
+        page,
+        pageSize,
+        totalOrders,
+        totalPages,
+        hasPreviousPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+      summary: {
+        allOrders: orders.length,
+        filteredOrders: totalOrders,
+        openOrders: orders.filter((order) => !["entregue", "cancelado"].includes(order.status)).length,
+        totalRevenue: filteredOrders
+          .filter((order) => order.status !== "cancelado")
+          .reduce((sum, order) => sum + order.totalPrice, 0),
+      },
+    };
+  }
+
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  let countQuery = supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId);
+
+  if (status !== "todos") countQuery = countQuery.eq("status", status);
+  if (startDate) countQuery = countQuery.gte("delivery_date", startDate);
+  if (endDate) countQuery = countQuery.lte("delivery_date", endDate);
+
+  const [
+    { count: totalOrdersCount, error: countError },
+    { count: allOrdersCount, error: allOrdersError },
+    { count: openOrdersCount, error: openOrdersError },
+  ] = await Promise.all([
+    countQuery,
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+    supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .neq("status", "entregue")
+      .neq("status", "cancelado"),
+  ]);
+
+  if (countError) throw new Error(countError.message);
+  if (allOrdersError) throw new Error(allOrdersError.message);
+  if (openOrdersError) throw new Error(openOrdersError.message);
+
+  const totalOrders = totalOrdersCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
   const page = Math.min(normalizeProductionPage(filters.page), totalPages);
-  const pageOrders = filteredOrders.slice((page - 1) * pageSize, page * pageSize);
-  const pageOrderIds = new Set(pageOrders.map((order) => order.id));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let pageQuery = supabase
+    .from("orders")
+    .select(orderColumns)
+    .eq("business_id", businessId)
+    .order("delivery_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (status !== "todos") pageQuery = pageQuery.eq("status", status);
+  if (startDate) pageQuery = pageQuery.gte("delivery_date", startDate);
+  if (endDate) pageQuery = pageQuery.lte("delivery_date", endDate);
+
+  let revenueQuery = supabase
+    .from("orders")
+    .select("total_price,status")
+    .eq("business_id", businessId);
+
+  if (status !== "todos") revenueQuery = revenueQuery.eq("status", status);
+  if (startDate) revenueQuery = revenueQuery.gte("delivery_date", startDate);
+  if (endDate) revenueQuery = revenueQuery.lte("delivery_date", endDate);
+
+  const [{ data: pageRows, error: pageError }, { data: revenueRows, error: revenueError }] = await Promise.all([
+    pageQuery,
+    revenueQuery,
+  ]);
+
+  if (pageError) throw new Error(pageError.message);
+  if (revenueError) throw new Error(revenueError.message);
+
+  const pageOrders = (pageRows ?? []).map(mapOrderRow);
+  const pageOrderIds = pageOrders.map((order) => order.id);
+  const { data: itemRows, error: itemError } = pageOrderIds.length
+    ? await supabase
+        .from("order_items")
+        .select(orderItemColumns)
+        .eq("business_id", businessId)
+        .in("order_id", pageOrderIds)
+    : { data: [], error: null };
+
+  if (itemError) throw new Error(itemError.message);
 
   return {
     orders: pageOrders,
-    orderItems: orderItems.filter((item) => pageOrderIds.has(item.orderId)),
+    orderItems: (itemRows ?? []).map(mapOrderItemRow),
     filters: {
       status,
       startDate,
@@ -881,12 +1134,12 @@ export const getProductionData = cache(async function getProductionData(filters:
       hasNextPage: page < totalPages,
     },
     summary: {
-      allOrders: orders.length,
+      allOrders: allOrdersCount ?? 0,
       filteredOrders: totalOrders,
-      openOrders: orders.filter((order) => !["entregue", "cancelado"].includes(order.status)).length,
-      totalRevenue: filteredOrders
+      openOrders: openOrdersCount ?? 0,
+      totalRevenue: (revenueRows ?? [])
         .filter((order) => order.status !== "cancelado")
-        .reduce((sum, order) => sum + order.totalPrice, 0),
+        .reduce((sum, order) => sum + Number(order.total_price), 0),
     },
   };
 });

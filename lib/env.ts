@@ -6,6 +6,14 @@ export function isSupabaseConfigured() {
   );
 }
 
+export function isDemoModeAllowed() {
+  return process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
+}
+
+export function isSeedRouteAllowed() {
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_SEED_ROUTE === "true";
+}
+
 export function getSupabaseUrl() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 

@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getBusinessId } from "@/lib/auth-context";
-import { isSupabaseConfigured } from "@/lib/env";
+import { isDemoModeAllowed, isSupabaseConfigured } from "@/lib/env";
 import { getAppUrl } from "@/lib/env";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { convertUnit } from "@/lib/calculations";
+import { assertArrayLimit, assertHttpsUrl, assertMaxLength, securityLimits } from "@/lib/security";
+import { assertRateLimit } from "@/lib/rate-limit";
 import type { ExpenseCategory, OrderStatus, PaymentStatus, Unit } from "@/types";
 
 const expenseCategories: ExpenseCategory[] = [
@@ -61,6 +64,15 @@ function getUnit(value: unknown): Unit {
   return units.includes(value as Unit) ? (value as Unit) : "un";
 }
 
+async function getRateLimitIp() {
+  const headerStore = await headers();
+  return (
+    headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    headerStore.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 type ParsedOrderItem = {
   product_id: string | null;
   recipe_id: string | null;
@@ -110,6 +122,10 @@ async function getParsedOrderItems(
     throw new Error("Adicione pelo menos um produto ou receita ao pedido.");
   }
 
+  if (rawItems.length > securityLimits.orderItemsJsonBytes) {
+    throw new Error("O pedido tem itens demais para salvar com segurança.");
+  }
+
   let payload: unknown;
   try {
     payload = JSON.parse(rawItems);
@@ -121,14 +137,17 @@ async function getParsedOrderItems(
     throw new Error("Adicione pelo menos um produto ou receita ao pedido.");
   }
 
+  assertArrayLimit(payload, securityLimits.orderItems, "Pedido");
+
   const normalizedPayload = payload.map((item) => {
     const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     const productId = typeof record.productId === "string" && record.productId ? record.productId : null;
     const recipeId = typeof record.recipeId === "string" && record.recipeId ? record.recipeId : null;
     const quantity = toNumberInput(record.quantity, 1);
     const unitPrice = toNumberInput(record.unitPrice);
-    const unitCost = toNumberInput(record.unitCostSnapshot);
     const notes = typeof record.notes === "string" && record.notes.trim() ? record.notes.trim() : null;
+
+    assertMaxLength(notes, securityLimits.itemNotes, "Observação do item");
 
     return {
       productId,
@@ -136,7 +155,6 @@ async function getParsedOrderItems(
       quantity,
       quantityUnit: getUnit(record.quantityUnit),
       unitPrice,
-      unitCost,
       notes,
     };
   });
@@ -148,14 +166,14 @@ async function getParsedOrderItems(
     productIds.length > 0
       ? supabase
           .from("products")
-          .select("id, name, recipe_id")
+          .select("id, name, recipe_id, default_sale_price")
           .eq("business_id", businessId)
           .in("id", productIds)
       : Promise.resolve({ data: [], error: null }),
     recipeIds.length > 0
       ? supabase
           .from("recipes")
-          .select("id, name, yield_quantity")
+          .select("id, name, yield_quantity, yield_unit")
           .eq("business_id", businessId)
           .in("id", recipeIds)
       : Promise.resolve({ data: [], error: null }),
@@ -179,7 +197,7 @@ async function getParsedOrderItems(
     allRecipeIds.length > 0
       ? await supabase
           .from("recipes")
-          .select("id, name, yield_quantity")
+          .select("id, name, yield_quantity, yield_unit")
           .eq("business_id", businessId)
           .in("id", allRecipeIds)
       : { data: recipes ?? [], error: null };
@@ -247,8 +265,8 @@ async function getParsedOrderItems(
       throw new Error("A quantidade precisa ser maior que zero.");
     }
 
-    if (item.unitPrice < 0 || item.unitCost < 0) {
-      throw new Error("Precos e custos nao podem ser negativos.");
+    if (item.unitPrice < 0) {
+      throw new Error("Precos nao podem ser negativos.");
     }
 
     const product = item.productId ? productMap.get(item.productId) : null;
@@ -262,8 +280,14 @@ async function getParsedOrderItems(
       throw new Error("Receita nao encontrada para este pedido.");
     }
 
-    const unitCost = item.unitCost > 0 ? item.unitCost : recipeUnitCostMap.get(recipeId ?? "") ?? 0;
-    const totalPrice = item.quantity * item.unitPrice;
+    const unitCost = recipeUnitCostMap.get(recipeId ?? "") ?? 0;
+    const defaultSalePrice = product ? Number(product.default_sale_price) : 0;
+    const unitPrice = product
+      ? recipe && recipe.yield_unit !== "un" && Number(recipe.yield_quantity) > 0
+        ? defaultSalePrice / Number(recipe.yield_quantity)
+        : defaultSalePrice
+      : item.unitPrice;
+    const totalPrice = item.quantity * unitPrice;
     const totalCost = item.quantity * unitCost;
 
     return {
@@ -272,7 +296,7 @@ async function getParsedOrderItems(
       name: product ? String(product.name) : String(recipe?.name ?? "Receita do pedido"),
       quantity: item.quantity,
       quantity_unit: item.quantityUnit,
-      unit_price: item.unitPrice,
+      unit_price: unitPrice,
       total_price: totalPrice,
       unit_cost_snapshot: unitCost,
       total_cost_snapshot: totalCost,
@@ -303,8 +327,12 @@ function isMissingTableError(error: { code?: string; message?: string }) {
 }
 
 export async function signInAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     redirect("/dashboard");
+  }
+
+  if (!isSupabaseConfigured()) {
+    redirect("/login?erro=config");
   }
 
   const supabase = await createClient();
@@ -313,6 +341,16 @@ export async function signInAction(formData: FormData) {
 
   if (!email || !password) {
     redirect("/login?erro=campos");
+  }
+
+  try {
+    assertRateLimit({
+      key: `login:${await getRateLimitIp()}:${email.toLowerCase()}`,
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    });
+  } catch {
+    redirect("/login?erro=limite");
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -325,8 +363,12 @@ export async function signInAction(formData: FormData) {
 }
 
 export async function requestPasswordResetAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     redirect("/login?sucesso=reset");
+  }
+
+  if (!isSupabaseConfigured()) {
+    redirect("/login?erro=config");
   }
 
   const supabase = await createClient();
@@ -334,6 +376,16 @@ export async function requestPasswordResetAction(formData: FormData) {
 
   if (!email) {
     redirect("/login?erro=campos");
+  }
+
+  try {
+    assertRateLimit({
+      key: `reset:${await getRateLimitIp()}:${email.toLowerCase()}`,
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+  } catch {
+    redirect("/login?erro=limite");
   }
 
   const { data: emailExists, error: emailCheckError } = await supabase.rpc("email_has_auth_user", {
@@ -344,13 +396,11 @@ export async function requestPasswordResetAction(formData: FormData) {
     redirect("/login?erro=reset_config");
   }
 
-  if (!emailExists) {
-    redirect("/login?erro=email_nao_cadastrado");
-  }
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${getAppUrl()}/auth/callback?next=/redefinir-senha`,
-  });
+  const { error } = emailExists
+    ? await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${getAppUrl()}/auth/callback?next=/redefinir-senha`,
+      })
+    : { error: null };
 
   if (error) {
     redirect("/login?erro=reset");
@@ -369,7 +419,7 @@ export async function signOutAction() {
 }
 
 export async function createCustomerAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/clientes");
     return;
   }
@@ -393,7 +443,7 @@ export async function createCustomerAction(formData: FormData) {
 }
 
 export async function createBusinessExpenseAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/gestao");
     return;
   }
@@ -427,7 +477,7 @@ export async function createBusinessExpenseAction(formData: FormData) {
 }
 
 export async function updateBusinessExpenseAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/gestao");
     return;
   }
@@ -465,7 +515,7 @@ export async function updateBusinessExpenseAction(formData: FormData) {
 }
 
 export async function deleteBusinessExpenseAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/gestao");
     revalidatePath("/financeiro");
     redirect("/financeiro");
@@ -496,7 +546,7 @@ export async function deleteBusinessExpenseAction(formData: FormData) {
 }
 
 export async function updateProfitDistributionAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/gestao");
     return;
   }
@@ -542,7 +592,7 @@ export async function updateProfitDistributionAction(formData: FormData) {
 }
 
 export async function updatePaymentSettingsAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/financeiro");
     revalidatePath("/pedidos");
     return;
@@ -550,14 +600,13 @@ export async function updatePaymentSettingsAction(formData: FormData) {
 
   const businessId = await getBusinessId();
   const paymentLink = getNullableString(formData, "payment_link");
+  const paymentInstructions = getNullableString(formData, "payment_instructions");
 
   if (paymentLink) {
-    try {
-      new URL(paymentLink);
-    } catch {
-      throw new Error("Informe um link de pagamento valido.");
-    }
+    assertHttpsUrl(paymentLink, "link de pagamento");
   }
+
+  assertMaxLength(paymentInstructions, securityLimits.paymentText, "Instruções de pagamento");
 
   const supabase = await createClient();
   const { error } = await supabase.from("business_payment_settings").upsert(
@@ -567,7 +616,7 @@ export async function updatePaymentSettingsAction(formData: FormData) {
       pix_holder_name: getNullableString(formData, "pix_holder_name"),
       bank_name: getNullableString(formData, "bank_name"),
       payment_link: paymentLink,
-      payment_instructions: getNullableString(formData, "payment_instructions"),
+      payment_instructions: paymentInstructions,
     },
     { onConflict: "business_id" },
   );
@@ -585,7 +634,7 @@ export async function updatePaymentSettingsAction(formData: FormData) {
 }
 
 export async function updateCustomerAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/clientes");
     return;
   }
@@ -619,7 +668,7 @@ export async function updateCustomerAction(formData: FormData) {
 }
 
 export async function deleteCustomerAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/clientes");
     redirect("/clientes");
   }
@@ -649,7 +698,7 @@ export async function deleteCustomerAction(formData: FormData) {
 }
 
 export async function createIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/ingredientes");
     return;
   }
@@ -671,7 +720,7 @@ export async function createIngredientAction(formData: FormData) {
 }
 
 export async function createIngredientWithPurchaseAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/ingredientes");
     return;
   }
@@ -723,7 +772,7 @@ export async function createIngredientWithPurchaseAction(formData: FormData) {
 }
 
 export async function createIngredientPurchaseAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/ingredientes");
     return;
   }
@@ -772,7 +821,7 @@ export async function createIngredientPurchaseAction(formData: FormData) {
 }
 
 export async function updateIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/ingredientes");
     return;
   }
@@ -810,7 +859,7 @@ export async function updateIngredientAction(formData: FormData) {
 }
 
 export async function deleteIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/ingredientes");
     return;
   }
@@ -845,7 +894,7 @@ export async function deleteIngredientAction(formData: FormData) {
 }
 
 export async function createRecipeAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -870,7 +919,7 @@ export async function createRecipeAction(formData: FormData) {
 }
 
 export async function updateRecipeAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -907,7 +956,7 @@ export async function updateRecipeAction(formData: FormData) {
 }
 
 export async function deleteRecipeAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     redirect("/receitas");
   }
@@ -937,7 +986,7 @@ export async function deleteRecipeAction(formData: FormData) {
 }
 
 export async function addRecipeIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -978,7 +1027,7 @@ export async function addRecipeIngredientAction(formData: FormData) {
 }
 
 export async function updateRecipeIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -1026,7 +1075,7 @@ export async function updateRecipeIngredientAction(formData: FormData) {
 }
 
 export async function deleteRecipeIngredientAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -1054,7 +1103,7 @@ export async function deleteRecipeIngredientAction(formData: FormData) {
 }
 
 export async function createProductAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/calculadoras");
     return;
   }
@@ -1081,7 +1130,7 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     return;
   }
@@ -1117,7 +1166,7 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function deleteProductAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/receitas");
     redirect("/receitas");
   }
@@ -1147,7 +1196,7 @@ export async function deleteProductAction(formData: FormData) {
 }
 
 export async function createOrderAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/pedidos");
     return;
   }
@@ -1206,7 +1255,7 @@ export async function createOrderAction(formData: FormData) {
 }
 
 export async function updateOrderAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/pedidos");
     return;
   }
@@ -1278,7 +1327,7 @@ export async function updateOrderAction(formData: FormData) {
 }
 
 export async function deleteOrderAction(formData: FormData) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && isDemoModeAllowed()) {
     revalidatePath("/pedidos");
     return;
   }

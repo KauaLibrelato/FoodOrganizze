@@ -7,7 +7,7 @@ import { QuotePdfButton } from "@/components/orders/quote-pdf-button";
 import { QuotePrintButton } from "@/components/orders/quote-print-button";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatDateTime, formatOrderLabel } from "@/lib/calculations";
-import { getBusinessPaymentSettings, getCustomers, getOrderItems, getOrders } from "@/lib/data";
+import { getBusinessPaymentSettings, getCustomerById, getOrderById, getOrderItemsByOrderId } from "@/lib/data";
 import { BRAND_NAME } from "@/lib/brand";
 import type { BusinessPaymentSettings, Customer, Order, OrderItem } from "@/types";
 
@@ -78,18 +78,15 @@ function buildWhatsappUrl(order: Order, items: OrderItem[], customer?: Customer,
 
 export default async function OrderQuotePage({ params }: PageProps) {
   const { orderId } = await params;
-  const [orders, orderItems, customers, paymentSettings] = await Promise.all([
-    getOrders(),
-    getOrderItems(),
-    getCustomers(),
+  const [order, items, paymentSettings] = await Promise.all([
+    getOrderById(orderId),
+    getOrderItemsByOrderId(orderId),
     getBusinessPaymentSettings(),
   ]);
-  const order = orders.find((item) => item.id === orderId);
 
   if (!order) notFound();
 
-  const items = orderItems.filter((item) => item.orderId === order.id);
-  const customer = order.customerId ? customers.find((item) => item.id === order.customerId) : undefined;
+  const customer = order.customerId ? (await getCustomerById(order.customerId)) ?? undefined : undefined;
   const whatsappUrl = buildWhatsappUrl(order, items, customer, paymentSettings);
   const emissionDate = formatDate(new Date().toISOString().slice(0, 10));
   const actionButtonClass = "h-10 min-h-10 justify-center px-3 text-xs font-semibold sm:text-sm";

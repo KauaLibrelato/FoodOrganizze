@@ -1,8 +1,5 @@
 "use client";
 
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-
 const quoteSelector = "quote-card";
 
 function getQuoteCard() {
@@ -17,6 +14,7 @@ async function renderQuoteCanvas() {
   const element = getQuoteCard();
   const originalWidth = element.style.width;
   const originalMaxWidth = element.style.maxWidth;
+  const { default: html2canvas } = await import("html2canvas");
 
   element.style.width = "460px";
   element.style.maxWidth = "460px";
@@ -56,7 +54,7 @@ export async function downloadQuoteImage(filename = "orcamento-casa-fratoni.png"
 }
 
 export async function downloadQuotePdf(filename = "orcamento-casa-fratoni.pdf") {
-  const canvas = await renderQuoteCanvas();
+  const [{ jsPDF }, canvas] = await Promise.all([import("jspdf"), renderQuoteCanvas()]);
   const image = canvas.toDataURL("image/png", 1);
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true });
   const pageWidth = pdf.internal.pageSize.getWidth();

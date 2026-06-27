@@ -9,6 +9,7 @@ import { ConfirmActionButton } from "@/components/forms/confirm-action-button";
 import { OrderForm } from "@/components/forms/order-form";
 import { Input } from "@/components/ui/input";
 import { calculateRecipeCost, calculateRecipeCostPerYield, formatCurrency, formatDateTime, formatOrderLabel } from "@/lib/calculations";
+import { groupByKey } from "@/lib/data-helpers";
 import { getCustomers, getOrderItems, getOrders, getProducts, getRecipeIngredients, getRecipes } from "@/lib/data";
 import type { RecipeIngredient } from "@/types";
 
@@ -21,9 +22,15 @@ export default async function OrdersPage() {
     getRecipes(),
     getRecipeIngredients(),
   ]);
+  const customersById = new Map(customers.map((customer) => [customer.id, customer]));
+  const orderItemsByOrder = groupByKey(orderItems, (item) => item.orderId);
+  const recipeIngredientsByRecipe = groupByKey(
+    recipeIngredients.filter((item) => item.ingredient),
+    (item) => item.recipeId,
+  );
   const recipeCosts = Object.fromEntries(
     recipes.map((recipe) => {
-      const items = recipeIngredients.filter((item) => item.recipeId === recipe.id && item.ingredient);
+      const items = recipeIngredientsByRecipe.get(recipe.id) ?? [];
       const cost = calculateRecipeCost(items as Required<RecipeIngredient>[]);
       return [
         recipe.id,
@@ -67,8 +74,8 @@ export default async function OrdersPage() {
           ) : (
           <div className="space-y-3">
             {orders.map((order) => {
-              const customer = customers.find((item) => item.id === order.customerId);
-              const items = orderItems.filter((item) => item.orderId === order.id);
+              const customer = order.customerId ? customersById.get(order.customerId) : undefined;
+              const items = orderItemsByOrder.get(order.id) ?? [];
               return (
                 <article key={order.id} className="rounded-xl border border-cream-300 bg-card p-4 shadow-sm">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

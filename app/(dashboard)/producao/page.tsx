@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDateTime, formatOrderLabel } from "@/lib/calculations";
+import { groupByKey } from "@/lib/data-helpers";
 import { getCustomers, getProductionData } from "@/lib/data";
 import type { OrderStatus } from "@/types";
 
@@ -63,6 +64,8 @@ export default async function ProductionPage({ searchParams }: ProductionPagePro
   ]);
 
   const { filters, pagination, summary } = production;
+  const customersById = new Map(customers.map((customer) => [customer.id, customer]));
+  const orderItemsByOrder = groupByKey(production.orderItems, (item) => item.orderId);
   const previousHref = buildProductionHref({
     status: filters.status,
     startDate: filters.startDate,
@@ -153,8 +156,8 @@ export default async function ProductionPage({ searchParams }: ProductionPagePro
         ) : (
           <div className="space-y-3">
             {production.orders.map((order) => {
-              const customer = customers.find((item) => item.id === order.customerId);
-              const items = production.orderItems.filter((item) => item.orderId === order.id);
+              const customer = order.customerId ? customersById.get(order.customerId) : undefined;
+              const items = orderItemsByOrder.get(order.id) ?? [];
 
               return (
                 <article key={order.id} className="rounded-xl border border-cream-300 bg-card p-4 shadow-sm">
